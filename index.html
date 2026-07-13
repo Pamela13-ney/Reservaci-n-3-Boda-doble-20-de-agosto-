@@ -396,21 +396,23 @@
     <text x="50" y="82" text-anchor="middle" fill="#8a7a5f" font-family="Georgia, serif" font-style="italic" font-size="7">G &amp; P · R &amp; K</text>
   </svg>
 </template></x-dc>
-<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:430,&quot;height&quot;:900},&quot;totalSeats&quot;:{&quot;editor&quot;:&quot;int&quot;,&quot;default&quot;:3,&quot;min&quot;:1,&quot;max&quot;:12,&quot;tsType&quot;:&quot;number&quot;,&quot;section&quot;:&quot;Lugares reservados&quot;},&quot;filledSeats&quot;:{&quot;editor&quot;:&quot;int&quot;,&quot;default&quot;:3,&quot;min&quot;:0,&quot;max&quot;:12,&quot;tsType&quot;:&quot;number&quot;,&quot;section&quot;:&quot;Lugares reservados&quot;}}">
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:430,&quot;height&quot;:900},&quot;totalSeats&quot;:{&quot;editor&quot;:&quot;int&quot;,&quot;default&quot;:7,&quot;min&quot;:1,&quot;max&quot;:12,&quot;tsType&quot;:&quot;number&quot;,&quot;section&quot;:&quot;Lugares reservados&quot;},&quot;filledSeats&quot;:{&quot;editor&quot;:&quot;int&quot;,&quot;default&quot;:3,&quot;min&quot;:0,&quot;max&quot;:12,&quot;tsType&quot;:&quot;number&quot;,&quot;section&quot;:&quot;Lugares reservados&quot;}}">
 class Component extends DCLogic {
   state = { days: '—', hours: '—', minutes: '—', seconds: '—', playing: false, opened: false, envGone: false };
   audioEl = React.createRef();
   userPaused = false;
   primed = false;
 
-  // Precarga el audio (sin reproducir) para que arranque rápido al abrir
+  // Pre-reproduce en SILENCIO (muteado) para dejar el audio listo; no se oye nada
   primeAudio = () => {
     const a = this.audioEl.current;
     if (!a || this.primed) return;
     this.primed = true;
-    a.muted = false;
+    a.muted = true;
     a.volume = 1;
     try { a.load(); } catch (e) {}
+    const p = a.play();
+    if (p && p.then) p.catch(() => {});
   };
 
   tryPlay = () => {
@@ -418,23 +420,21 @@ class Component extends DCLogic {
     if (!a || this.userPaused) return;
     a.muted = false;
     a.volume = 1;
+    // Si ya venía sonando en silencio, solo lo activamos: suena al instante
     if (!a.paused) { this.setState({ playing: true }); return; }
     const p = a.play();
     if (p && p.then) p.then(() => this.setState({ playing: true })).catch(() => {
-      // Reintento: recarga la fuente y prueba de nuevo
       try { a.load(); } catch (e) {}
       setTimeout(() => {
         const q = a.play();
         if (q && q.then) q.then(() => this.setState({ playing: true })).catch(() => {});
-      }, 250);
+      }, 200);
     });
   };
 
   openEnvelope = () => {
     if (this.state.opened) return;
     this.setState({ opened: true });
-    const a = this.audioEl.current;
-    if (a) { try { a.currentTime = 0; } catch (e) {} }
     this.tryPlay();
     setTimeout(() => this.setState({ envGone: true }), 3000);
   };
@@ -482,7 +482,7 @@ class Component extends DCLogic {
   }
 
   renderVals() {
-    const total = Math.max(1, this.props.totalSeats ?? 3);
+    const total = Math.max(1, this.props.totalSeats ?? 7);
     const filled = Math.max(0, Math.min(this.props.filledSeats ?? 3, total));
     const seats = Array.from({ length: total }, (_, i) => ({
       bg: i < filled ? '#C08A7D' : 'transparent',
